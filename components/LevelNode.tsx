@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Level, LevelStatus, LevelType } from '../types';
 
@@ -65,9 +64,19 @@ const LevelNode: React.FC<LevelNodeProps> = ({ level, onNodeClick }) => {
   return (
     <div className="flex flex-col items-center space-y-2">
       <button onClick={handleClick} className={nodeClasses} disabled={isLocked} aria-label={`Level ${level.id} - ${level.title}: Status ${level.status}`}>
-        <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-sm px-3 py-1 rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap z-20">
-          Level {level.id} - {level.title}: <span className="font-semibold">{formattedStatus}</span>
-          <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-slate-800"></div>
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-max max-w-xs bg-slate-800 border border-slate-700 text-white px-4 py-3 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-20">
+          <h4 className="font-bold text-base text-sky-300 mb-2 text-center">{level.title}</h4>
+          <div className="text-sm space-y-1">
+            <div className="flex justify-between items-center">
+              <span className="text-slate-400">Status:</span>
+              <span className="font-semibold text-slate-200 ml-4">{formattedStatus}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-slate-400">Est. Time:</span>
+              <span className="font-semibold text-slate-200 ml-4">{level.estimatedTime}</span>
+            </div>
+          </div>
+          <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-8 border-x-transparent border-t-8 border-t-slate-800"></div>
         </div>
         <div className="icon-container">
           {level.icon}

@@ -70,11 +70,13 @@ const LevelModal: React.FC<LevelModalProps> = ({ level, onClose, onStartLevel })
         
         <h2 className="text-3xl font-bold mb-2">{level.title}</h2>
 
-        <div className="text-slate-400 mb-6">
+        <div className="text-slate-400">
           <span>Est. Time: {level.estimatedTime}</span>
         </div>
 
-        <p className="text-slate-300 mb-8 text-lg">{level.description}</p>
+        <div className="my-6 p-4 bg-slate-700/50 rounded-lg border border-slate-600">
+          <p className="text-slate-200 text-lg leading-relaxed">{level.description}</p>
+        </div>
         
         {actionButton}
 

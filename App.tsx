@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+
+
+import React, { useState, useRef } from 'react';
 import Header from './components/Header';
 import LevelNode from './components/LevelNode';
 import LevelModal from './components/LevelModal';
@@ -66,10 +68,27 @@ const Path = ({ positions }: { positions: ReturnType<typeof getDesktopPositions>
 const App: React.FC = () => {
   const [levels, setLevels] = useState<Level[]>(LEARNING_PATH);
   const [selectedLevel, setSelectedLevel] = useState<Level | null>(null);
+  const levelNodeRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const handleLevelSelect = (level: Level) => {
     if (level.status !== LevelStatus.Locked) {
       setSelectedLevel(level);
+
+      const isMobile = window.innerWidth < 768; // Tailwind's `md` breakpoint
+      const nodeKey = isMobile ? `${level.id}-mobile` : `${level.id}-desktop`;
+      const node = levelNodeRefs.current[nodeKey];
+      
+      if (node) {
+        // Use a small timeout to ensure the scroll happens smoothly after the state update
+        // and doesn't conflict with other UI changes like the modal opening.
+        setTimeout(() => {
+          node.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+            inline: 'nearest',
+          });
+        }, 100);
+      }
     }
   };
 
@@ -161,7 +180,9 @@ const App: React.FC = () => {
           <div className="relative z-10">
             {levels.map((level, index) => (
               <div
-                key={level.id}
+                // FIX: The ref callback for a DOM element should not return a value. The assignment `levelNodeRefs.current[...] = el` implicitly returns `el`. By wrapping the assignment in curly braces, the arrow function body becomes a block and implicitly returns undefined, which satisfies the `Ref<HTMLDivElement>` type.
+                ref={el => { levelNodeRefs.current[`${level.id}-mobile`] = el; }}
+                key={`${level.id}-mobile`}
                 className="absolute md:hidden"
                 style={{ top: `${index * 150}px`, left: '50%', transform: 'translateX(-50%)' }}
               >
@@ -170,7 +191,9 @@ const App: React.FC = () => {
             ))}
              {levels.map((level, index) => (
               <div
-                key={level.id}
+                // FIX: The ref callback for a DOM element should not return a value. The assignment `levelNodeRefs.current[...] = el` implicitly returns `el`. By wrapping the assignment in curly braces, the arrow function body becomes a block and implicitly returns undefined, which satisfies the `Ref<HTMLDivElement>` type.
+                ref={el => { levelNodeRefs.current[`${level.id}-desktop`] = el; }}
+                key={`${level.id}-desktop`}
                 className="hidden md:block absolute"
                 style={desktopPositions[index]}
               >
