@@ -8,7 +8,9 @@ export enum LevelStatus {
 }
 
 export enum LevelType {
-  Standard = 'standard',
+  Quiz = 'quiz',
+  Project = 'project',
+  Reading = 'reading',
   Checkpoint = 'checkpoint',
   Bonus = 'bonus',
 }
@@ -31,4 +33,6 @@ export interface Roadmap {
 export interface AppProgress {
   roadmaps: Roadmap[];
   currentIndex: number;
+  streakCount: number;
+  lastCompletedDate: string | null;
 }

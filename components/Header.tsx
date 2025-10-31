@@ -4,9 +4,10 @@ import React from 'react';
 interface HeaderProps {
   onGenerateClick: () => void;
   onHistoryClick: () => void;
+  streakCount: number;
 }
 
-const Header: React.FC<HeaderProps> = ({ onGenerateClick, onHistoryClick }) => {
+const Header: React.FC<HeaderProps> = ({ onGenerateClick, onHistoryClick, streakCount }) => {
   const FlameIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-orange-400" viewBox="0 0 20 20" fill="currentColor">
       <path fillRule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM10 2a1 1 0 011 1v3.268l1.83 5.49a1 1 0 11-1.83.614L10 8.268V3a1 1 0 011-1zm-1 11a1 1 0 00-1 1v.054l-1.622-4.867a1 1 0 10-1.898.632l2.25 6.75a1 1 0 00.946.685h3.352a1 1 0 00.946-.685l.75-2.25a1 1 0 10-1.898-.632L9 13.054V13z" clipRule="evenodd" />
@@ -50,7 +51,7 @@ const Header: React.FC<HeaderProps> = ({ onGenerateClick, onHistoryClick }) => {
               <SparklesIcon />
             </button>
             <div className="flex items-center space-x-1">
-              <span className="text-orange-400 font-bold text-lg">10</span>
+              <span className="text-orange-400 font-bold text-lg">{streakCount}</span>
               <FlameIcon />
             </div>
             <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full">

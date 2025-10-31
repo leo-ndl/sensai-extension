@@ -6,8 +6,9 @@ import LevelNode from './components/LevelNode';
 import LevelModal from './components/LevelModal';
 import ProgressBar from './components/ProgressBar';
 import RoadmapGeneratorModal from './components/RoadmapGeneratorModal';
+import RoadmapCompleteModal from './components/RoadmapCompleteModal';
 import HistoryModal from './components/HistoryModal';
-import { LEARNING_PATH, CheckIcon, StarIcon, LockIcon, CastleIcon, TreasureIcon } from './constants';
+import { LEARNING_PATH, CheckIcon, LockIcon, CastleIcon, TreasureIcon, ReadingIcon, QuizIcon, ProjectIcon } from './constants';
 import { Level, LevelStatus, LevelType, AppProgress, Roadmap } from './types';
 
 // Extend the Window interface to include the confetti function
@@ -79,10 +80,12 @@ const getIconForLevel = (level: Level): React.ReactNode => {
     }
     // Active status
     switch (level.type) {
-        case LevelType.Standard: return <StarIcon />;
+        case LevelType.Reading: return <ReadingIcon />;
+        case LevelType.Quiz: return <QuizIcon />;
+        case LevelType.Project: return <ProjectIcon />;
         case LevelType.Checkpoint: return <CastleIcon />;
         case LevelType.Bonus: return <TreasureIcon />;
-        default: return <StarIcon />;
+        default: return <ReadingIcon />;
     }
 };
 
@@ -92,12 +95,33 @@ const App: React.FC = () => {
       const savedProgress = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (savedProgress) {
         const parsedProgress: AppProgress = JSON.parse(savedProgress);
+        
         // Re-assign icons as they are not serializable
         parsedProgress.roadmaps.forEach(roadmap => {
           roadmap.levels.forEach(level => {
             level.icon = getIconForLevel(level);
           });
         });
+
+        // --- Streak Validation Logic ---
+        const today = new Date();
+        const yesterday = new Date();
+        yesterday.setDate(today.getDate() - 1);
+
+        const todayStr = today.toISOString().split('T')[0];
+        const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+        // Ensure properties exist for backwards compatibility
+        parsedProgress.streakCount = parsedProgress.streakCount || 0;
+        parsedProgress.lastCompletedDate = parsedProgress.lastCompletedDate || null;
+
+        if (parsedProgress.lastCompletedDate && 
+            parsedProgress.lastCompletedDate !== todayStr && 
+            parsedProgress.lastCompletedDate !== yesterdayStr) {
+            // Streak is broken
+            parsedProgress.streakCount = 0;
+        }
+
         return parsedProgress;
       }
     } catch (error) {
@@ -106,14 +130,18 @@ const App: React.FC = () => {
     // Default initial state
     return {
       roadmaps: [{ topic: 'Default Path', levels: LEARNING_PATH }],
-      currentIndex: 0
+      currentIndex: 0,
+      streakCount: 0,
+      lastCompletedDate: null,
     };
   });
 
   const [selectedLevel, setSelectedLevel] = useState<Level | null>(null);
   const [isGeneratorOpen, setIsGeneratorOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isRoadmapCompleteModalOpen, setIsRoadmapCompleteModalOpen] = useState(false);
   const levelNodeRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const prevProgressPercentage = useRef(0);
 
   useEffect(() => {
     try {
@@ -133,6 +161,35 @@ const App: React.FC = () => {
   
   const activeRoadmap = progress.roadmaps[progress.currentIndex];
   const levels = activeRoadmap.levels;
+  
+  const completedLevelsCount = levels.filter(level => level.status === LevelStatus.Completed).length;
+  const totalLevelsCount = levels.length;
+  const progressPercentage = totalLevelsCount > 0 ? (completedLevelsCount / totalLevelsCount) * 100 : 0;
+  
+  useEffect(() => {
+      if (progressPercentage === 100 && prevProgressPercentage.current < 100) {
+        setIsRoadmapCompleteModalOpen(true);
+        // Trigger a big confetti celebration
+        if (window.confetti) {
+            const duration = 5 * 1000;
+            const animationEnd = Date.now() + duration;
+            const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 100 };
+
+            const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
+
+            const interval = setInterval(() => {
+                const timeLeft = animationEnd - Date.now();
+                if (timeLeft <= 0) return clearInterval(interval);
+
+                const particleCount = 50 * (timeLeft / duration);
+                window.confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } });
+                window.confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } });
+            }, 250);
+        }
+      }
+      prevProgressPercentage.current = progressPercentage;
+  }, [progressPercentage]);
+
 
   const handleLevelSelect = (level: Level) => {
     if (level.status !== LevelStatus.Locked) {
@@ -159,30 +216,60 @@ const App: React.FC = () => {
   };
   
   const handleLevelComplete = (completedLevelId: number) => {
-    let levelWasActive = false;
+    const activeLevelIndex = levels.findIndex(level => level.id === completedLevelId && level.status === LevelStatus.Active);
+
+    // If the level is not found or not active, it's a review or an invalid action.
+    if (activeLevelIndex === -1) {
+      handleCloseModal();
+      return;
+    }
     
+    // Trigger side-effects for a successful completion
+    if (window.confetti) {
+      window.confetti({
+        particleCount: 150,
+        spread: 90,
+        origin: { y: 0.6 }
+      });
+    }
+
     setProgress(currentProgress => {
       // Deep copy to avoid mutation
       const newProgress: AppProgress = JSON.parse(JSON.stringify(currentProgress));
       const currentRoadmap = newProgress.roadmaps[newProgress.currentIndex];
       const newLevels = currentRoadmap.levels;
 
-      const completedLevelIndex = newLevels.findIndex(level => level.id === completedLevelId);
-
-      if (completedLevelIndex === -1 || newLevels[completedLevelIndex].status !== LevelStatus.Active) {
-        return currentProgress; // No change
-      }
+      // Mark as completed
+      newLevels[activeLevelIndex].status = LevelStatus.Completed;
       
-      levelWasActive = true;
-
-      newLevels[completedLevelIndex].status = LevelStatus.Completed;
-      
-      const nextLevelIndex = completedLevelIndex + 1;
+      // Unlock next level
+      const nextLevelIndex = activeLevelIndex + 1;
       if (nextLevelIndex < newLevels.length) {
         if (newLevels[nextLevelIndex].status === LevelStatus.Locked) {
             newLevels[nextLevelIndex].status = LevelStatus.Active;
         }
       }
+      
+      // --- Streak Logic ---
+      const today = new Date();
+      const yesterday = new Date();
+      yesterday.setDate(today.getDate() - 1);
+      const todayStr = today.toISOString().split('T')[0];
+      const yesterdayStr = yesterday.toISOString().split('T')[0];
+      const lastDate = newProgress.lastCompletedDate;
+
+      // Only update streak once per day on the first completion of that day
+      if (lastDate !== todayStr) {
+        if (lastDate === yesterdayStr) {
+            // Continued the streak
+            newProgress.streakCount = (newProgress.streakCount || 0) + 1;
+        } else {
+            // New or broken streak
+            newProgress.streakCount = 1;
+        }
+        newProgress.lastCompletedDate = todayStr;
+      }
+      // --- End Streak Logic ---
       
       // Re-assign icons after status changes
       newProgress.roadmaps.forEach(rdmp => rdmp.levels.forEach(lvl => {
@@ -192,18 +279,9 @@ const App: React.FC = () => {
       return newProgress;
     });
 
-    if (levelWasActive) {
-      if (window.confetti) {
-        window.confetti({
-          particleCount: 150,
-          spread: 90,
-          origin: { y: 0.6 }
-        });
-      }
-    }
-
     handleCloseModal();
   };
+
 
   const handleGenerateRoadmap = async (topic: string) => {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -213,7 +291,7 @@ const App: React.FC = () => {
         type: Type.OBJECT,
         properties: {
           title: { type: Type.STRING },
-          type: { type: Type.STRING, enum: ['standard', 'checkpoint', 'bonus'] },
+          type: { type: Type.STRING, enum: ['reading', 'quiz', 'project', 'checkpoint', 'bonus'] },
           description: { type: Type.STRING },
           estimatedTime: { type: Type.STRING },
         },
@@ -221,7 +299,7 @@ const App: React.FC = () => {
       },
     };
     
-    const systemInstruction = "You are an expert curriculum designer. Your task is to generate a gamified, step-by-step learning path based on a user's request. The path should consist of between 10 to 15 steps or more if needed. It must include a mix of 'standard' lessons for core concepts, 'checkpoint' levels to test knowledge, and 'bonus' levels for fun, related topics. The final output must be a valid JSON array of objects, conforming to the provided schema. Ensure the path is logical and progressive.";
+    const systemInstruction = "You are an expert curriculum designer. Your task is to generate a gamified, step-by-step learning path based on a user's request. The path should consist of between 10 to 15 steps or more if needed. It must include a mix of 'reading' lessons for core concepts, 'quiz' levels to test knowledge, 'project' levels for hands-on application, 'checkpoint' levels to gate progress, and 'bonus' levels for fun, related topics. The final output must be a valid JSON array of objects, conforming to the provided schema. Ensure the path is logical and progressive.";
     const contents = `Generate a learning path for: ${topic}`;
 
     const response = await ai.models.generateContent({
@@ -254,6 +332,7 @@ const App: React.FC = () => {
     setProgress(currentProgress => {
       const newRoadmaps = [...currentProgress.roadmaps, newRoadmap];
       return {
+        ...currentProgress,
         roadmaps: newRoadmaps,
         currentIndex: newRoadmaps.length - 1
       };
@@ -284,6 +363,7 @@ const App: React.FC = () => {
       }
       
       return {
+        ...currentProgress,
         roadmaps: newRoadmaps,
         currentIndex: newIndex
       };
@@ -293,15 +373,12 @@ const App: React.FC = () => {
   const desktopPositions = getDesktopPositions(levels);
   const containerHeight = (levels.length) * ROW_HEIGHT;
 
-  const completedLevelsCount = levels.filter(level => level.status === LevelStatus.Completed).length;
-  const totalLevelsCount = levels.length;
-  const progressPercentage = totalLevelsCount > 0 ? (completedLevelsCount / totalLevelsCount) * 100 : 0;
-
   return (
     <div className="min-h-screen bg-slate-900 text-white font-sans">
       <Header 
         onGenerateClick={() => setIsGeneratorOpen(true)}
         onHistoryClick={() => setIsHistoryOpen(true)} 
+        streakCount={progress.streakCount}
       />
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="max-w-lg mx-auto md:max-w-2xl">
@@ -362,6 +439,11 @@ const App: React.FC = () => {
         currentIndex={progress.currentIndex}
         onSwitch={handleSwitchRoadmap}
         onDelete={handleDeleteRoadmap}
+      />
+      <RoadmapCompleteModal
+        isOpen={isRoadmapCompleteModalOpen}
+        onClose={() => setIsRoadmapCompleteModalOpen(false)}
+        topic={activeRoadmap.topic}
       />
     </div>
   );

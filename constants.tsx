@@ -3,9 +3,22 @@ import React from 'react';
 import { Level, LevelStatus, LevelType } from './types';
 
 // SVG Icons for different states and types
-export const StarIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" viewBox="0 0 20 20" fill="currentColor">
-    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+export const ReadingIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+  </svg>
+);
+
+export const QuizIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+  </svg>
+);
+
+export const ProjectIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
   </svg>
 );
 
@@ -35,16 +48,16 @@ export const TreasureIcon = () => (
 
 
 export const LEARNING_PATH: Level[] = [
-  { id: 1, title: 'Basics 1', status: LevelStatus.Completed, type: LevelType.Standard, icon: <CheckIcon />, description: 'Learn the fundamental vocabulary and grammar.', estimatedTime: '5 min' },
-  { id: 2, title: 'Basics 2', status: LevelStatus.Completed, type: LevelType.Standard, icon: <CheckIcon />, description: 'Expand on the basics with new words and sentence structures.', estimatedTime: '7 min' },
-  { id: 3, title: 'Greetings', status: LevelStatus.Active, type: LevelType.Standard, icon: <StarIcon />, description: 'Master common greetings and introductions.', estimatedTime: '6 min' },
+  { id: 1, title: 'Basics 1', status: LevelStatus.Completed, type: LevelType.Reading, icon: <CheckIcon />, description: 'Learn the fundamental vocabulary and grammar.', estimatedTime: '5 min' },
+  { id: 2, title: 'Basics 2', status: LevelStatus.Completed, type: LevelType.Quiz, icon: <CheckIcon />, description: 'Expand on the basics with new words and sentence structures.', estimatedTime: '7 min' },
+  { id: 3, title: 'Greetings', status: LevelStatus.Active, type: LevelType.Reading, icon: <ReadingIcon />, description: 'Master common greetings and introductions.', estimatedTime: '6 min' },
   { id: 4, title: 'Checkpoint', status: LevelStatus.Locked, type: LevelType.Checkpoint, icon: <CastleIcon />, description: 'Test your knowledge of the basics to unlock new lessons.', estimatedTime: '10 min' },
-  { id: 5, title: 'Food', status: LevelStatus.Locked, type: LevelType.Standard, icon: <LockIcon />, description: 'Learn how to talk about your favorite foods and order at a restaurant.', estimatedTime: '8 min' },
-  { id: 6, title: 'Animals', status: LevelStatus.Locked, type: LevelType.Standard, icon: <LockIcon />, description: 'Discover the names of common animals and pets.', estimatedTime: '5 min' },
+  { id: 5, title: 'Food', status: LevelStatus.Locked, type: LevelType.Reading, icon: <LockIcon />, description: 'Learn how to talk about your favorite foods and order at a restaurant.', estimatedTime: '8 min' },
+  { id: 6, title: 'Animals', status: LevelStatus.Locked, type: LevelType.Quiz, icon: <LockIcon />, description: 'Discover the names of common animals and pets.', estimatedTime: '5 min' },
   { id: 7, title: 'Bonus Skill', status: LevelStatus.Locked, type: LevelType.Bonus, icon: <TreasureIcon />, description: 'Unlock this special skill to learn fun idioms and phrases!', estimatedTime: '12 min' },
-  { id: 8, title: 'Plurals', status: LevelStatus.Locked, type: LevelType.Standard, icon: <LockIcon />, description: 'Understand how to form plural nouns.', estimatedTime: '7 min' },
+  { id: 8, title: 'Plurals', status: LevelStatus.Locked, type: LevelType.Project, icon: <LockIcon />, description: 'Apply your knowledge by writing sentences with plural nouns.', estimatedTime: '7 min' },
   { id: 9, title: 'Checkpoint 2', status: LevelStatus.Locked, type: LevelType.Checkpoint, icon: <CastleIcon />, description: 'Show you have mastered the material so far to proceed.', estimatedTime: '10 min' },
-  { id: 10, title: 'Travel', status: LevelStatus.Locked, type: LevelType.Standard, icon: <LockIcon />, description: 'Learn essential phrases for traveling and asking for directions.', estimatedTime: '9 min' },
-  { id: 11, title: 'Family', status: LevelStatus.Locked, type: LevelType.Standard, icon: <LockIcon />, description: 'Talk about your family members and relationships.', estimatedTime: '6 min' },
-  { id: 12, title: 'Verbs', status: LevelStatus.Locked, type: LevelType.Standard, icon: <LockIcon />, description: 'Learn to conjugate and use common verbs.', estimatedTime: '10 min' },
+  { id: 10, title: 'Travel', status: LevelStatus.Locked, type: LevelType.Reading, icon: <LockIcon />, description: 'Learn essential phrases for traveling and asking for directions.', estimatedTime: '9 min' },
+  { id: 11, title: 'Family', status: LevelStatus.Locked, type: LevelType.Quiz, icon: <LockIcon />, description: 'Talk about your family members and relationships.', estimatedTime: '6 min' },
+  { id: 12, title: 'Verbs', status: LevelStatus.Locked, type: LevelType.Project, icon: <LockIcon />, description: 'Build a short story using common verbs in the correct conjugation.', estimatedTime: '10 min' },
 ];

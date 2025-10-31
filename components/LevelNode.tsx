@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Level, LevelStatus, LevelType } from '../types';
 
@@ -27,8 +28,14 @@ const LevelNode: React.FC<LevelNodeProps> = ({ level, onNodeClick }) => {
      let bgClass = '';
      
      switch (level.type) {
-         case LevelType.Standard:
-            bgClass = level.status === LevelStatus.Completed ? 'bg-emerald-500' : 'bg-sky-500';
+        case LevelType.Reading:
+            bgClass = level.status === LevelStatus.Completed ? 'bg-emerald-500' : 'bg-teal-500';
+            break;
+        case LevelType.Quiz:
+            bgClass = level.status === LevelStatus.Completed ? 'bg-emerald-500' : 'bg-indigo-500';
+            break;
+        case LevelType.Project:
+            bgClass = level.status === LevelStatus.Completed ? 'bg-emerald-500' : 'bg-rose-500';
             break;
          case LevelType.Checkpoint:
             typeClass = 'w-28 h-28 ';
