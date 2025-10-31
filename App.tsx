@@ -1,10 +1,11 @@
 
-
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { GoogleGenAI, Type } from "@google/genai";
 import Header from './components/Header';
 import LevelNode from './components/LevelNode';
 import LevelModal from './components/LevelModal';
 import ProgressBar from './components/ProgressBar';
+import RoadmapGeneratorModal from './components/RoadmapGeneratorModal';
 import { LEARNING_PATH, CheckIcon, StarIcon, LockIcon, CastleIcon, TreasureIcon } from './constants';
 import { Level, LevelStatus, LevelType } from './types';
 
@@ -65,10 +66,53 @@ const Path = ({ positions }: { positions: ReturnType<typeof getDesktopPositions>
     );
 };
 
+const getIconForLevel = (level: Level): React.ReactNode => {
+    if (level.status === LevelStatus.Completed) {
+        return <CheckIcon />;
+    }
+    if (level.status === LevelStatus.Locked) {
+        if (level.type === LevelType.Checkpoint) return <CastleIcon />;
+        if (level.type === LevelType.Bonus) return <TreasureIcon />;
+        return <LockIcon />;
+    }
+    // Active status
+    switch (level.type) {
+        case LevelType.Standard: return <StarIcon />;
+        case LevelType.Checkpoint: return <CastleIcon />;
+        case LevelType.Bonus: return <TreasureIcon />;
+        default: return <StarIcon />;
+    }
+};
+
 const App: React.FC = () => {
-  const [levels, setLevels] = useState<Level[]>(LEARNING_PATH);
+  const [levels, setLevels] = useState<Level[]>(() => {
+    try {
+      const savedPath = localStorage.getItem('learningPath');
+      if (savedPath) {
+        const parsedLevels: Level[] = JSON.parse(savedPath);
+        // Re-assign icons as they are not serializable
+        return parsedLevels.map(level => ({
+          ...level,
+          icon: getIconForLevel(level),
+        }));
+      }
+    } catch (error) {
+      console.error("Could not load learning path from local storage", error);
+    }
+    return LEARNING_PATH;
+  });
+
   const [selectedLevel, setSelectedLevel] = useState<Level | null>(null);
+  const [isGeneratorOpen, setIsGeneratorOpen] = useState(false);
   const levelNodeRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('learningPath', JSON.stringify(levels));
+    } catch (error) {
+      console.error("Could not save learning path to local storage", error);
+    }
+  }, [levels]);
 
   const handleLevelSelect = (level: Level) => {
     if (level.status !== LevelStatus.Locked) {
@@ -79,8 +123,6 @@ const App: React.FC = () => {
       const node = levelNodeRefs.current[nodeKey];
       
       if (node) {
-        // Use a small timeout to ensure the scroll happens smoothly after the state update
-        // and doesn't conflict with other UI changes like the modal opening.
         setTimeout(() => {
           node.scrollIntoView({
             behavior: 'smooth',
@@ -108,29 +150,14 @@ const App: React.FC = () => {
       
       levelWasActive = true;
 
-      // Update the completed level's status and icon
       newLevels[completedLevelIndex].status = LevelStatus.Completed;
-      newLevels[completedLevelIndex].icon = <CheckIcon />;
+      newLevels[completedLevelIndex].icon = getIconForLevel(newLevels[completedLevelIndex]);
       
       const nextLevelIndex = completedLevelIndex + 1;
       if (nextLevelIndex < newLevels.length) {
         if (newLevels[nextLevelIndex].status === LevelStatus.Locked) {
             newLevels[nextLevelIndex].status = LevelStatus.Active;
-            
-            // Assign the correct icon when a level becomes active
-            switch(newLevels[nextLevelIndex].type) {
-                case LevelType.Standard:
-                    newLevels[nextLevelIndex].icon = <StarIcon />;
-                    break;
-                case LevelType.Checkpoint:
-                    newLevels[nextLevelIndex].icon = <CastleIcon />;
-                    break;
-                case LevelType.Bonus:
-                     newLevels[nextLevelIndex].icon = <TreasureIcon />;
-                    break;
-                default:
-                     newLevels[nextLevelIndex].icon = <LockIcon />;
-            }
+            newLevels[nextLevelIndex].icon = getIconForLevel(newLevels[nextLevelIndex]);
         }
       }
       
@@ -138,7 +165,6 @@ const App: React.FC = () => {
     });
 
     if (levelWasActive) {
-      // Trigger confetti!
       if (window.confetti) {
         window.confetti({
           particleCount: 150,
@@ -148,8 +174,55 @@ const App: React.FC = () => {
       }
     }
 
-    // Close modal after action
     handleCloseModal();
+  };
+
+  const handleGenerateRoadmap = async (topic: string) => {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const schema = {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          title: { type: Type.STRING },
+          type: { type: Type.STRING, enum: ['standard', 'checkpoint', 'bonus'] },
+          description: { type: Type.STRING },
+          estimatedTime: { type: Type.STRING },
+        },
+        required: ['title', 'type', 'description', 'estimatedTime'],
+      },
+    };
+    
+    const systemInstruction = "You are an expert curriculum designer. Your task is to generate a gamified, step-by-step learning path based on a user's request. The path should consist of between 10 to 15 steps or more if needed. It must include a mix of 'standard' lessons for core concepts, 'checkpoint' levels to test knowledge, and 'bonus' levels for fun, related topics. The final output must be a valid JSON array of objects, conforming to the provided schema. Ensure the path is logical and progressive.";
+    const contents = `Generate a learning path for: ${topic}`;
+
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents,
+        config: {
+            systemInstruction,
+            responseMimeType: 'application/json',
+            responseSchema: schema
+        }
+    });
+
+    const generatedLevels = JSON.parse(response.text);
+    
+    const newPath: Level[] = generatedLevels.map((genLevel: any, index: number) => {
+      const status = index === 0 ? LevelStatus.Active : LevelStatus.Locked;
+      const newLevel: Level = {
+          ...genLevel,
+          id: index + 1,
+          type: genLevel.type as LevelType,
+          status: status,
+          icon: null, // will be assigned next
+      };
+      newLevel.icon = getIconForLevel(newLevel);
+      return newLevel;
+    });
+    
+    setLevels(newPath);
+    setIsGeneratorOpen(false);
   };
   
   const desktopPositions = getDesktopPositions(levels);
@@ -161,7 +234,7 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-900 text-white font-sans">
-      <Header />
+      <Header onGenerateClick={() => setIsGeneratorOpen(true)} />
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="max-w-lg mx-auto md:max-w-2xl">
             <ProgressBar 
@@ -175,13 +248,12 @@ const App: React.FC = () => {
           <Path positions={desktopPositions} />
           
           <div className="absolute left-1/2 -translate-x-1/2 top-14 h-[calc(100%-7rem)] w-1.5 bg-slate-700 rounded-full md:hidden"></div>
-          <div className="absolute left-1/2 -translate-x-1/2 top-14 w-1.5 bg-gradient-to-b from-sky-500 to-cyan-400 rounded-full md:hidden transition-all duration-700 ease-out" style={{height: `${(completedLevelsCount / (totalLevelsCount -1)) * 100}%`}}></div>
+          <div className="absolute left-1/2 -translate-x-1/2 top-14 w-1.5 bg-gradient-to-b from-sky-500 to-cyan-400 rounded-full md:hidden transition-all duration-700 ease-out" style={{height: `${totalLevelsCount > 1 ? (completedLevelsCount / (totalLevelsCount -1)) * 100 : 0}%`}}></div>
 
           <div className="relative z-10">
             {levels.map((level, index) => (
               <div
-                // FIX: The ref callback for a DOM element should not return a value. The assignment `levelNodeRefs.current[...] = el` implicitly returns `el`. By wrapping the assignment in curly braces, the arrow function body becomes a block and implicitly returns undefined, which satisfies the `Ref<HTMLDivElement>` type.
-                ref={el => { levelNodeRefs.current[`${level.id}-mobile`] = el; }}
+                ref={el => { if(el) levelNodeRefs.current[`${level.id}-mobile`] = el; }}
                 key={`${level.id}-mobile`}
                 className="absolute md:hidden"
                 style={{ top: `${index * 150}px`, left: '50%', transform: 'translateX(-50%)' }}
@@ -191,8 +263,7 @@ const App: React.FC = () => {
             ))}
              {levels.map((level, index) => (
               <div
-                // FIX: The ref callback for a DOM element should not return a value. The assignment `levelNodeRefs.current[...] = el` implicitly returns `el`. By wrapping the assignment in curly braces, the arrow function body becomes a block and implicitly returns undefined, which satisfies the `Ref<HTMLDivElement>` type.
-                ref={el => { levelNodeRefs.current[`${level.id}-desktop`] = el; }}
+                ref={el => { if(el) levelNodeRefs.current[`${level.id}-desktop`] = el; }}
                 key={`${level.id}-desktop`}
                 className="hidden md:block absolute"
                 style={desktopPositions[index]}
@@ -210,6 +281,11 @@ const App: React.FC = () => {
             onStartLevel={handleLevelComplete}
         />
       )}
+      <RoadmapGeneratorModal
+        isOpen={isGeneratorOpen}
+        onClose={() => setIsGeneratorOpen(false)}
+        onGenerate={handleGenerateRoadmap}
+      />
     </div>
   );
 };
