@@ -1,0 +1,5 @@
+{
+  "name": "Gamified Learning Path",
+  "description": "An interactive, Duolingo-style learning path to visualize and track progress through different levels. It features a visually engaging and gamified interface that is fully responsive.",
+  "requestFramePermissions": []
+}
