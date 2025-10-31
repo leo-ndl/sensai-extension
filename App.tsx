@@ -6,8 +6,9 @@ import LevelNode from './components/LevelNode';
 import LevelModal from './components/LevelModal';
 import ProgressBar from './components/ProgressBar';
 import RoadmapGeneratorModal from './components/RoadmapGeneratorModal';
+import HistoryModal from './components/HistoryModal';
 import { LEARNING_PATH, CheckIcon, StarIcon, LockIcon, CastleIcon, TreasureIcon } from './constants';
-import { Level, LevelStatus, LevelType } from './types';
+import { Level, LevelStatus, LevelType, AppProgress, Roadmap } from './types';
 
 // Extend the Window interface to include the confetti function
 declare global {
@@ -16,6 +17,7 @@ declare global {
   }
 }
 
+const LOCAL_STORAGE_KEY = 'learningAppProgress';
 const ROW_HEIGHT = 160; // The vertical distance between nodes in pixels
 
 // Generate positions for each level node for the desktop layout
@@ -85,34 +87,52 @@ const getIconForLevel = (level: Level): React.ReactNode => {
 };
 
 const App: React.FC = () => {
-  const [levels, setLevels] = useState<Level[]>(() => {
+  const [progress, setProgress] = useState<AppProgress>(() => {
     try {
-      const savedPath = localStorage.getItem('learningPath');
-      if (savedPath) {
-        const parsedLevels: Level[] = JSON.parse(savedPath);
+      const savedProgress = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (savedProgress) {
+        const parsedProgress: AppProgress = JSON.parse(savedProgress);
         // Re-assign icons as they are not serializable
-        return parsedLevels.map(level => ({
-          ...level,
-          icon: getIconForLevel(level),
-        }));
+        parsedProgress.roadmaps.forEach(roadmap => {
+          roadmap.levels.forEach(level => {
+            level.icon = getIconForLevel(level);
+          });
+        });
+        return parsedProgress;
       }
     } catch (error) {
-      console.error("Could not load learning path from local storage", error);
+      console.error("Could not load progress from local storage", error);
     }
-    return LEARNING_PATH;
+    // Default initial state
+    return {
+      roadmaps: [{ topic: 'Default Path', levels: LEARNING_PATH }],
+      currentIndex: 0
+    };
   });
 
   const [selectedLevel, setSelectedLevel] = useState<Level | null>(null);
   const [isGeneratorOpen, setIsGeneratorOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const levelNodeRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   useEffect(() => {
     try {
-      localStorage.setItem('learningPath', JSON.stringify(levels));
+      // Create a serializable version of the progress without React nodes
+      const progressToSave = {
+        ...progress,
+        roadmaps: progress.roadmaps.map(roadmap => ({
+          ...roadmap,
+          levels: roadmap.levels.map(({ icon, ...level }) => level)
+        }))
+      };
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(progressToSave));
     } catch (error) {
-      console.error("Could not save learning path to local storage", error);
+      console.error("Could not save progress to local storage", error);
     }
-  }, [levels]);
+  }, [progress]);
+  
+  const activeRoadmap = progress.roadmaps[progress.currentIndex];
+  const levels = activeRoadmap.levels;
 
   const handleLevelSelect = (level: Level) => {
     if (level.status !== LevelStatus.Locked) {
@@ -140,28 +160,36 @@ const App: React.FC = () => {
   
   const handleLevelComplete = (completedLevelId: number) => {
     let levelWasActive = false;
-    setLevels(currentLevels => {
-      const newLevels = currentLevels.map(l => ({...l}));
+    
+    setProgress(currentProgress => {
+      // Deep copy to avoid mutation
+      const newProgress: AppProgress = JSON.parse(JSON.stringify(currentProgress));
+      const currentRoadmap = newProgress.roadmaps[newProgress.currentIndex];
+      const newLevels = currentRoadmap.levels;
+
       const completedLevelIndex = newLevels.findIndex(level => level.id === completedLevelId);
 
       if (completedLevelIndex === -1 || newLevels[completedLevelIndex].status !== LevelStatus.Active) {
-        return currentLevels;
+        return currentProgress; // No change
       }
       
       levelWasActive = true;
 
       newLevels[completedLevelIndex].status = LevelStatus.Completed;
-      newLevels[completedLevelIndex].icon = getIconForLevel(newLevels[completedLevelIndex]);
       
       const nextLevelIndex = completedLevelIndex + 1;
       if (nextLevelIndex < newLevels.length) {
         if (newLevels[nextLevelIndex].status === LevelStatus.Locked) {
             newLevels[nextLevelIndex].status = LevelStatus.Active;
-            newLevels[nextLevelIndex].icon = getIconForLevel(newLevels[nextLevelIndex]);
         }
       }
       
-      return newLevels;
+      // Re-assign icons after status changes
+      newProgress.roadmaps.forEach(rdmp => rdmp.levels.forEach(lvl => {
+          lvl.icon = getIconForLevel(lvl as Level);
+      }));
+
+      return newProgress;
     });
 
     if (levelWasActive) {
@@ -220,9 +248,46 @@ const App: React.FC = () => {
       newLevel.icon = getIconForLevel(newLevel);
       return newLevel;
     });
+
+    const newRoadmap: Roadmap = { topic, levels: newPath };
+
+    setProgress(currentProgress => {
+      const newRoadmaps = [...currentProgress.roadmaps, newRoadmap];
+      return {
+        roadmaps: newRoadmaps,
+        currentIndex: newRoadmaps.length - 1
+      };
+    });
     
-    setLevels(newPath);
     setIsGeneratorOpen(false);
+  };
+
+  const handleSwitchRoadmap = (index: number) => {
+    setProgress(currentProgress => ({
+      ...currentProgress,
+      currentIndex: index,
+    }));
+    setIsHistoryOpen(false);
+  };
+
+  const handleDeleteRoadmap = (index: number) => {
+    setProgress(currentProgress => {
+      if (currentProgress.roadmaps.length <= 1) return currentProgress;
+
+      const newRoadmaps = currentProgress.roadmaps.filter((_, i) => i !== index);
+      let newIndex = currentProgress.currentIndex;
+
+      if (index === currentProgress.currentIndex) {
+        newIndex = Math.max(0, index - 1);
+      } else if (index < currentProgress.currentIndex) {
+        newIndex = currentProgress.currentIndex - 1;
+      }
+      
+      return {
+        roadmaps: newRoadmaps,
+        currentIndex: newIndex
+      };
+    });
   };
   
   const desktopPositions = getDesktopPositions(levels);
@@ -234,13 +299,17 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-900 text-white font-sans">
-      <Header onGenerateClick={() => setIsGeneratorOpen(true)} />
+      <Header 
+        onGenerateClick={() => setIsGeneratorOpen(true)}
+        onHistoryClick={() => setIsHistoryOpen(true)} 
+      />
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="max-w-lg mx-auto md:max-w-2xl">
             <ProgressBar 
                 progress={progressPercentage} 
                 completed={completedLevelsCount} 
                 total={totalLevelsCount} 
+                topic={activeRoadmap.topic}
             />
         </div>
 
@@ -285,6 +354,14 @@ const App: React.FC = () => {
         isOpen={isGeneratorOpen}
         onClose={() => setIsGeneratorOpen(false)}
         onGenerate={handleGenerateRoadmap}
+      />
+      <HistoryModal
+        isOpen={isHistoryOpen}
+        onClose={() => setIsHistoryOpen(false)}
+        roadmaps={progress.roadmaps.map(({topic}) => ({topic}))}
+        currentIndex={progress.currentIndex}
+        onSwitch={handleSwitchRoadmap}
+        onDelete={handleDeleteRoadmap}
       />
     </div>
   );

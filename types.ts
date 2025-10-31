@@ -22,3 +22,13 @@ export interface Level {
   description: string;
   estimatedTime: string;
 }
+
+export interface Roadmap {
+  topic: string;
+  levels: Level[];
+}
+
+export interface AppProgress {
+  roadmaps: Roadmap[];
+  currentIndex: number;
+}
